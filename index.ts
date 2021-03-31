@@ -74,6 +74,8 @@ module.exports = class ElsAddonQunitTestRunner implements AddonAPI {
     };
   }
   bindLanguageServer() {
+    let connection = this.server.connection;
+    let documents = this.server.documents;
     const ts = loadTypeScript();
     const glintConfig = findConfig(this.project.root);
 
@@ -103,8 +105,7 @@ module.exports = class ElsAddonQunitTestRunner implements AddonAPI {
 
     this.languageServer = languageServer;
 
-    let connection = this.server.connection;
-    let documents = this.server.documents;
+
     let { scheduleDiagnostics, captureErrors } = buildHelpers({
       connection,
       documents,

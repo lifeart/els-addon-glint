@@ -49,6 +49,8 @@ module.exports = (function() {
             };
         }
         bindLanguageServer() {
+            let connection = this.server.connection;
+            let documents = this.server.documents;
             const ts = _loadTypescript.loadTypeScript();
             const glintConfig = _config.findConfig(this.project.root);
             const tsconfigPath = ts.findConfigFile(this.project.root, ts.sys.fileExists);
@@ -63,8 +65,6 @@ module.exports = (function() {
             };
             const languageServer = new _glintLanguageServer.default(ts, glintConfig, getRootFileNames, options);
             this.languageServer = languageServer;
-            let connection = this.server.connection;
-            let documents = this.server.documents;
             let { scheduleDiagnostics , captureErrors  } = buildHelpers({
                 connection,
                 documents,
