@@ -1,6 +1,6 @@
 {
   "name": "els-addon-glint",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "",
   "main": "index.js",
   "scripts": {
@@ -27,7 +27,12 @@
   },
   "ember-language-server": {
     "entry": "./index",
-    "debug": false
+    "debug": false,
+    "capabilities": {
+      "completionProvider": true,
+      "definitionProvider": true,
+      "referencesProvider": true
+    }
   },
   "devDependencies": {
     "@swc/cli": "^0.1.32",

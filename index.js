@@ -112,7 +112,11 @@ module.exports = (function() {
             };
         }
         async onComplete(_, params) {
-            return this.languageServer.getCompletions(params.textDocument.uri, params.position);
+            const results = await this.languageServer.getCompletions(params.textDocument.uri, params.position);
+            return [
+                ...results,
+                ...params.results
+            ];
         }
         async onDefinition(_, params) {
             const results = await this.languageServer.getDefinition(params.textDocument.uri, params.position);

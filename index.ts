@@ -166,10 +166,11 @@ module.exports = class ElsAddonQunitTestRunner implements AddonAPI {
     };
   }
   async onComplete(_: string, params: CompletionFunctionParams) {
-    return this.languageServer.getCompletions(
+    const results = await this.languageServer.getCompletions(
       params.textDocument.uri,
       params.position
     );
+    return [...results, ...params.results];
   }
   async onDefinition(_: string, params: DefinitionFunctionParams) {
     const results = await this.languageServer.getDefinition(
