@@ -182,7 +182,7 @@ module.exports = class ElsAddonQunitTestRunner implements AddonAPI {
       params.position
     );
   }
-  async onReference(root: string, params: ReferenceFunctionParams) {
+  async onReference(_: string, params: ReferenceFunctionParams) {
     return this.languageServer.getReferences(
       params.textDocument.uri,
       params.position
