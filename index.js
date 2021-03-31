@@ -82,14 +82,16 @@ module.exports = (function() {
                 languageServer.updateFile(document.uri, document.getText());
                 scheduleDiagnostics();
             });
-            connection.onPrepareRename(({ textDocument , position  })=>{
-                return captureErrors(()=>languageServer.prepareRename(textDocument.uri, position)
-                );
-            });
-            connection.onRenameRequest(({ textDocument , position , newName  })=>{
-                return captureErrors(()=>languageServer.getEditsForRename(textDocument.uri, position, newName)
-                );
-            });
+            // connection.onPrepareRename(({ textDocument, position }) => {
+            //   return captureErrors(() =>
+            //     languageServer.prepareRename(textDocument.uri, position)
+            //   );
+            // });
+            // connection.onRenameRequest(({ textDocument, position, newName }) => {
+            //   return captureErrors(() =>
+            //     languageServer.getEditsForRename(textDocument.uri, position, newName)
+            //   );
+            // });
             connection.onCompletionResolve((item)=>{
                 var ref;
                 return (ref = captureErrors(()=>languageServer.getCompletionDetails(item)
@@ -97,10 +99,6 @@ module.exports = (function() {
             });
             connection.onHover(({ textDocument , position  })=>{
                 return captureErrors(()=>languageServer.getHover(textDocument.uri, position)
-                );
-            });
-            connection.onReferences(({ textDocument , position  })=>{
-                return captureErrors(()=>languageServer.getReferences(textDocument.uri, position)
                 );
             });
             connection.onWorkspaceSymbol(({ query  })=>{
@@ -117,10 +115,18 @@ module.exports = (function() {
             return this.languageServer.getCompletions(params.textDocument.uri, params.position);
         }
         async onDefinition(_, params) {
-            return this.languageServer.getDefinition(params.textDocument.uri, params.position);
+            const results = await this.languageServer.getDefinition(params.textDocument.uri, params.position);
+            return [
+                ...results,
+                ...params.results
+            ];
         }
-        async onReference(root, params) {
-            return this.languageServer.getReferences(params.textDocument.uri, params.position);
+        async onReference(_, params) {
+            const results = this.languageServer.getReferences(params.textDocument.uri, params.position);
+            return [
+                ...results,
+                ...params.results
+            ];
         }
     }
     return ElsAddonQunitTestRunner;

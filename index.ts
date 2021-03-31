@@ -127,17 +127,17 @@ module.exports = class ElsAddonQunitTestRunner implements AddonAPI {
       scheduleDiagnostics();
     });
 
-    connection.onPrepareRename(({ textDocument, position }) => {
-      return captureErrors(() =>
-        languageServer.prepareRename(textDocument.uri, position)
-      );
-    });
+    // connection.onPrepareRename(({ textDocument, position }) => {
+    //   return captureErrors(() =>
+    //     languageServer.prepareRename(textDocument.uri, position)
+    //   );
+    // });
 
-    connection.onRenameRequest(({ textDocument, position, newName }) => {
-      return captureErrors(() =>
-        languageServer.getEditsForRename(textDocument.uri, position, newName)
-      );
-    });
+    // connection.onRenameRequest(({ textDocument, position, newName }) => {
+    //   return captureErrors(() =>
+    //     languageServer.getEditsForRename(textDocument.uri, position, newName)
+    //   );
+    // });
 
     connection.onCompletionResolve((item) => {
       return (
@@ -148,12 +148,6 @@ module.exports = class ElsAddonQunitTestRunner implements AddonAPI {
     connection.onHover(({ textDocument, position }) => {
       return captureErrors(() =>
         languageServer.getHover(textDocument.uri, position)
-      );
-    });
-
-    connection.onReferences(({ textDocument, position }) => {
-      return captureErrors(() =>
-        languageServer.getReferences(textDocument.uri, position)
       );
     });
 
@@ -177,15 +171,17 @@ module.exports = class ElsAddonQunitTestRunner implements AddonAPI {
     );
   }
   async onDefinition(_: string, params: DefinitionFunctionParams) {
-    return this.languageServer.getDefinition(
+    const results = await this.languageServer.getDefinition(
       params.textDocument.uri,
       params.position
     );
+    return [...results, ...params.results];
   }
   async onReference(_: string, params: ReferenceFunctionParams) {
-    return this.languageServer.getReferences(
+    const results = this.languageServer.getReferences(
       params.textDocument.uri,
       params.position
     );
+    return [...results, ...params.results];
   }
 };
