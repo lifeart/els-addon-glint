@@ -4,16 +4,30 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "npx swc ./index.ts -o index.js"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/lifeart/els-addon-glint.git"
   },
-  "author": "",
+  "author": "Aleksandr Kanunnikov <lifeart92@gmail.com>",
   "license": "ISC",
   "bugs": {
     "url": "https://github.com/lifeart/els-addon-glint/issues"
   },
-  "homepage": "https://github.com/lifeart/els-addon-glint#readme"
+  "homepage": "https://github.com/lifeart/els-addon-glint#readme",
+  "dependencies": {
+    "@glint/core": "^0.4.1",
+    "@lifeart/ember-language-server": "^1.0.5",
+    "vscode-jsonrpc": "^6.0.0",
+    "vscode-languageserver-protocol": "^3.16.0",
+    "vscode-languageserver-textdocument": "^1.0.1",
+    "vscode-uri": "^3.0.2"
+  },
+  "devDependencies": {
+    "@swc/cli": "^0.1.32",
+    "@swc/core": "^1.2.45",
+    "@types/node": "^14.14.22"
+  }
 }
