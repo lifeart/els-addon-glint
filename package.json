@@ -1,0 +1,19 @@
+{
+  "name": "els-addon-glint",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lifeart/els-addon-glint.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/lifeart/els-addon-glint/issues"
+  },
+  "homepage": "https://github.com/lifeart/els-addon-glint#readme"
+}
