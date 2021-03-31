@@ -1,113 +1,175 @@
+import { Project, Server, AddonAPI } from "@lifeart/ember-language-server";
+import { loadTypeScript } from "@glint/core/lib/common/load-typescript";
 import {
     Connection,
-    ServerCapabilities,
     TextDocuments,
-    TextDocumentSyncKind,
   } from 'vscode-languageserver';
   import { TextDocument } from 'vscode-languageserver-textdocument';
-  import GlintLanguageServer from './glint-language-server';
-  import { debounce } from '../common/scheduling';
-  
-  export const capabilities: ServerCapabilities = {
-    textDocumentSync: TextDocumentSyncKind.Full,
-    completionProvider: {
-      resolveProvider: true,
-    },
-    referencesProvider: true,
-    hoverProvider: true,
-    definitionProvider: true,
-    workspaceSymbolProvider: true,
-    renameProvider: {
-      prepareProvider: true,
+import { findConfig } from "@glint/config";
+import {
+  parseConfigFile,
+  uriToFilePath,
+} from "@glint/core/lib/language-server/util";
+import GlintLanguageServer from "@glint/core/lib/language-server/glint-language-server";
+
+type BindingHelpers = {
+  scheduleDiagnostics: () => void;
+  captureErrors: <T>(callback: () => T) => T | undefined;
+};
+
+function debounce(threshold: number, f: () => void): () => void {
+  let pending: NodeJS.Timeout | undefined;
+  return () => {
+    if (pending) {
+      clearTimeout(pending);
+    }
+
+    setTimeout(f, threshold);
+  };
+}
+
+export type BindingArgs = {
+  languageServer: GlintLanguageServer;
+  documents: TextDocuments<TextDocument>;
+  connection: Connection;
+};
+
+function buildHelpers({
+  languageServer,
+  documents,
+  connection,
+}: BindingArgs): BindingHelpers {
+  return {
+    scheduleDiagnostics: debounce(250, () => {
+      for (let { uri } of documents.all()) {
+        const diagnostics = languageServer.getDiagnostics(uri);
+        connection.sendDiagnostics({ uri, diagnostics });
+      }
+    }),
+
+    captureErrors(callback) {
+      try {
+        return callback();
+      } catch (error) {
+        connection.console.error(error.stack ?? error);
+      }
     },
   };
-  
-  export type BindingArgs = {
-    languageServer: GlintLanguageServer;
-    documents: TextDocuments<TextDocument>;
-    connection: Connection;
-  };
-  
-  export function bindLanguageServer(args: BindingArgs): void {
-    let { connection, languageServer, documents } = args;
-    let { scheduleDiagnostics, captureErrors } = buildHelpers(args);
-  
-    connection.onInitialize(() => ({ capabilities }));
-  
+}
+module.exports = class ElsAddonQunitTestRunner implements AddonAPI {
+  server!: Server;
+  project!: Project;
+  onInit(server: Server, project: Project) {
+    this.server = server;
+    this.project = project;
+    let destroy = this.bindLanguageServer();
+
+    return () => {
+        destroy();
+    }
+  }
+  bindLanguageServer() {
+    const ts = loadTypeScript();
+    const glintConfig = findConfig(this.project.root);
+
+    const tsconfigPath = ts.findConfigFile(this.project.root, ts.sys.fileExists);
+    const { fileNames, options } = parseConfigFile(ts, tsconfigPath);
+
+    const tsFileNames = fileNames.filter((fileName) => /\.ts$/.test(fileName));
+    const baseProjectRoots = new Set(tsFileNames);
+    const getRootFileNames = (): Array<string> => {
+      return tsFileNames.concat(
+        documents
+          .all()
+          .map((doc) => uriToFilePath(doc.uri))
+          .filter((path) => path.endsWith(".ts") && !baseProjectRoots.has(path))
+      );
+    };
+
+    const languageServer = new GlintLanguageServer(
+      ts,
+      glintConfig,
+      getRootFileNames,
+      options
+    );
+
+    let connection = this.server.connection;
+    let documents = this.server.documents;
+    let { scheduleDiagnostics, captureErrors } = buildHelpers({
+        connection,
+        documents,
+        languageServer
+    });
+
+    // connection.onInitialize(() => ({ capabilities }));
+
     documents.onDidOpen(({ document }) => {
       languageServer.openFile(document.uri, document.getText());
       scheduleDiagnostics();
     });
-  
+
     documents.onDidClose(({ document }) => {
       languageServer.closeFile(document.uri);
     });
-  
+
     documents.onDidChangeContent(({ document }) => {
       languageServer.updateFile(document.uri, document.getText());
       scheduleDiagnostics();
     });
-  
+
     connection.onPrepareRename(({ textDocument, position }) => {
-      return captureErrors(() => languageServer.prepareRename(textDocument.uri, position));
+      return captureErrors(() =>
+        languageServer.prepareRename(textDocument.uri, position)
+      );
     });
-  
+
     connection.onRenameRequest(({ textDocument, position, newName }) => {
       return captureErrors(() =>
         languageServer.getEditsForRename(textDocument.uri, position, newName)
       );
     });
-  
+
     connection.onCompletion(({ textDocument, position }) => {
-      return captureErrors(() => languageServer.getCompletions(textDocument.uri, position));
+      return captureErrors(() =>
+        languageServer.getCompletions(textDocument.uri, position)
+      );
     });
-  
+
     connection.onCompletionResolve((item) => {
-      return captureErrors(() => languageServer.getCompletionDetails(item)) ?? item;
+      return (
+        captureErrors(() => languageServer.getCompletionDetails(item)) ?? item
+      );
     });
-  
+
     connection.onHover(({ textDocument, position }) => {
-      return captureErrors(() => languageServer.getHover(textDocument.uri, position));
+      return captureErrors(() =>
+        languageServer.getHover(textDocument.uri, position)
+      );
     });
-  
+
     connection.onDefinition(({ textDocument, position }) => {
-      return captureErrors(() => languageServer.getDefinition(textDocument.uri, position));
+      return captureErrors(() =>
+        languageServer.getDefinition(textDocument.uri, position)
+      );
     });
-  
+
     connection.onReferences(({ textDocument, position }) => {
-      return captureErrors(() => languageServer.getReferences(textDocument.uri, position));
+      return captureErrors(() =>
+        languageServer.getReferences(textDocument.uri, position)
+      );
     });
-  
+
     connection.onWorkspaceSymbol(({ query }) => {
       return captureErrors(() => languageServer.findSymbols(query));
     });
-  
+
     connection.onDidChangeWatchedFiles(() => {
       // TODO: use this to synchronize files that aren't open so we don't assume changes only
       // happen in the editor.
     });
+
+    return () => {
+        languageServer.dispose();
+    }
   }
-  
-  type BindingHelpers = {
-    scheduleDiagnostics: () => void;
-    captureErrors: <T>(callback: () => T) => T | undefined;
-  };
-  
-  function buildHelpers({ languageServer, documents, connection }: BindingArgs): BindingHelpers {
-    return {
-      scheduleDiagnostics: debounce(250, () => {
-        for (let { uri } of documents.all()) {
-          const diagnostics = languageServer.getDiagnostics(uri);
-          connection.sendDiagnostics({ uri, diagnostics });
-        }
-      }),
-  
-      captureErrors(callback) {
-        try {
-          return callback();
-        } catch (error) {
-          connection.console.error(error.stack ?? error);
-        }
-      },
-    };
-  }
+};
