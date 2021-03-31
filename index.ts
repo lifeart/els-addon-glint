@@ -1,10 +1,14 @@
-import { Project, Server, AddonAPI } from "@lifeart/ember-language-server";
-import { loadTypeScript } from "@glint/core/lib/common/load-typescript";
 import {
-    Connection,
-    TextDocuments,
-  } from 'vscode-languageserver';
-  import { TextDocument } from 'vscode-languageserver-textdocument';
+  Project,
+  Server,
+  AddonAPI,
+  CompletionFunctionParams,
+  DefinitionFunctionParams,
+  ReferenceFunctionParams,
+} from "@lifeart/ember-language-server";
+import { loadTypeScript } from "@glint/core/lib/common/load-typescript";
+import { Connection, TextDocuments } from "vscode-languageserver";
+import { TextDocument } from "vscode-languageserver-textdocument";
 import { findConfig } from "@glint/config";
 import {
   parseConfigFile,
@@ -59,20 +63,24 @@ function buildHelpers({
 module.exports = class ElsAddonQunitTestRunner implements AddonAPI {
   server!: Server;
   project!: Project;
+  languageServer!: GlintLanguageServer;
   onInit(server: Server, project: Project) {
     this.server = server;
     this.project = project;
     let destroy = this.bindLanguageServer();
 
     return () => {
-        destroy();
-    }
+      destroy();
+    };
   }
   bindLanguageServer() {
     const ts = loadTypeScript();
     const glintConfig = findConfig(this.project.root);
 
-    const tsconfigPath = ts.findConfigFile(this.project.root, ts.sys.fileExists);
+    const tsconfigPath = ts.findConfigFile(
+      this.project.root,
+      ts.sys.fileExists
+    );
     const { fileNames, options } = parseConfigFile(ts, tsconfigPath);
 
     const tsFileNames = fileNames.filter((fileName) => /\.ts$/.test(fileName));
@@ -93,12 +101,14 @@ module.exports = class ElsAddonQunitTestRunner implements AddonAPI {
       options
     );
 
+    this.languageServer = languageServer;
+
     let connection = this.server.connection;
     let documents = this.server.documents;
     let { scheduleDiagnostics, captureErrors } = buildHelpers({
-        connection,
-        documents,
-        languageServer
+      connection,
+      documents,
+      languageServer,
     });
 
     // connection.onInitialize(() => ({ capabilities }));
@@ -129,12 +139,6 @@ module.exports = class ElsAddonQunitTestRunner implements AddonAPI {
       );
     });
 
-    connection.onCompletion(({ textDocument, position }) => {
-      return captureErrors(() =>
-        languageServer.getCompletions(textDocument.uri, position)
-      );
-    });
-
     connection.onCompletionResolve((item) => {
       return (
         captureErrors(() => languageServer.getCompletionDetails(item)) ?? item
@@ -144,12 +148,6 @@ module.exports = class ElsAddonQunitTestRunner implements AddonAPI {
     connection.onHover(({ textDocument, position }) => {
       return captureErrors(() =>
         languageServer.getHover(textDocument.uri, position)
-      );
-    });
-
-    connection.onDefinition(({ textDocument, position }) => {
-      return captureErrors(() =>
-        languageServer.getDefinition(textDocument.uri, position)
       );
     });
 
@@ -169,7 +167,25 @@ module.exports = class ElsAddonQunitTestRunner implements AddonAPI {
     });
 
     return () => {
-        languageServer.dispose();
-    }
+      languageServer.dispose();
+    };
+  }
+  async onComplete(_: string, params: CompletionFunctionParams) {
+    return this.languageServer.getCompletions(
+      params.textDocument.uri,
+      params.position
+    );
+  }
+  async onDefinition(_: string, params: DefinitionFunctionParams) {
+    return this.languageServer.getDefinition(
+      params.textDocument.uri,
+      params.position
+    );
+  }
+  async onReference(root: string, params: ReferenceFunctionParams) {
+    return this.languageServer.getReferences(
+      params.textDocument.uri,
+      params.position
+    );
   }
 };

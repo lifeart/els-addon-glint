@@ -62,6 +62,7 @@ module.exports = (function() {
                 ));
             };
             const languageServer = new _glintLanguageServer.default(ts, glintConfig, getRootFileNames, options);
+            this.languageServer = languageServer;
             let connection = this.server.connection;
             let documents = this.server.documents;
             let { scheduleDiagnostics , captureErrors  } = buildHelpers({
@@ -89,10 +90,6 @@ module.exports = (function() {
                 return captureErrors(()=>languageServer.getEditsForRename(textDocument.uri, position, newName)
                 );
             });
-            connection.onCompletion(({ textDocument , position  })=>{
-                return captureErrors(()=>languageServer.getCompletions(textDocument.uri, position)
-                );
-            });
             connection.onCompletionResolve((item)=>{
                 var ref;
                 return (ref = captureErrors(()=>languageServer.getCompletionDetails(item)
@@ -100,10 +97,6 @@ module.exports = (function() {
             });
             connection.onHover(({ textDocument , position  })=>{
                 return captureErrors(()=>languageServer.getHover(textDocument.uri, position)
-                );
-            });
-            connection.onDefinition(({ textDocument , position  })=>{
-                return captureErrors(()=>languageServer.getDefinition(textDocument.uri, position)
                 );
             });
             connection.onReferences(({ textDocument , position  })=>{
@@ -119,6 +112,15 @@ module.exports = (function() {
             return ()=>{
                 languageServer.dispose();
             };
+        }
+        async onComplete(_, params) {
+            return this.languageServer.getCompletions(params.textDocument.uri, params.position);
+        }
+        async onDefinition(_, params) {
+            return this.languageServer.getDefinition(params.textDocument.uri, params.position);
+        }
+        async onReference(root, params) {
+            return this.languageServer.getReferences(params.textDocument.uri, params.position);
         }
     }
     return ElsAddonQunitTestRunner;
