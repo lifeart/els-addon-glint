@@ -65,12 +65,18 @@ module.exports = class ElsAddonQunitTestRunner implements AddonAPI {
   project!: Project;
   languageServer!: GlintLanguageServer;
   onInit(server: Server, project: Project) {
+
+    project.executors["els.getProjectRegistry"] = async (server, __, [cmd]) => {
+      return server.getRegistry(project.root);
+    }
+
     this.server = server;
     this.project = project;
     let destroy = this.bindLanguageServer();
 
     return () => {
       destroy();
+      project.executors["els.getProjectRegistry"] = undefined;
     };
   }
   bindLanguageServer() {
