@@ -141,6 +141,9 @@ class GlintInterfaceGenerator {
   stack = [];
   imports = [];
   addComponent(normalizedName: string, importName: string, paths: string[]) {
+    if (!this.correctFile(paths)) {
+        return;
+    }
     this.addHelper(normalizedName, importName, paths);
     const cName = normalizeToAngleBracketComponent(normalizedName);
     this.stack.push([
@@ -148,8 +151,11 @@ class GlintInterfaceGenerator {
       importName,
     ]);
   }
+  correctFile(paths: string[]) {
+    return paths.find(el=> el.endsWith('.ts') && !el.includes('test'));
+  }
   addHelper(normalizedName: string, importName: string, paths: string[]) {
-    const tsPath = paths.find(el=> el.endsWith('.ts') && !el.includes('test'));
+    const tsPath = this.correctFile(paths);
     if (!tsPath) {
         return;
     }
@@ -159,8 +165,8 @@ class GlintInterfaceGenerator {
   }
   
   toString() {
-    return [...this.imports, this.prefix, ...this.stack.map(([name, imp]) => {
-        return `"${name}": typeof ${imp};`;
+    return [...this.imports, , this.prefix, ...this.stack.map(([name, imp]) => {
+        return `  "${name}": typeof ${imp};`;
     }), this.postfix].join('\n');
   }
 }
