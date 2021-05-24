@@ -29,6 +29,8 @@ function _interopRequireWildcard(obj) {
     }
 }
 const projectRoot = "C:\\Users\\lifeart\\Documents\\repos\\dreamcatcher-web-app\\grdd";
+const addonLocation = "C:\\Users\\lifeart\\Documents\\repos\\els-addon-glint";
+const appName = JSON.parse(fs.readFileSync(path.join(projectRoot, 'package.json'), 'utf8')).name;
 if (!fs.existsSync("./registry.json")) {
     const server = startServer();
     const connection = createConnection(server);
@@ -70,7 +72,7 @@ if (!fs.existsSync("./registry.json")) {
                 {
                     local: {
                         addons: [
-                            "C:\\Users\\lifeart\\Documents\\repos\\els-addon-glint"
+                            addonLocation
                         ]
                     }
                 }, 
@@ -117,20 +119,11 @@ function toClassName(name) {
 }
 class GlintInterfaceGenerator {
     addComponent(normalizedName, importName, paths) {
-        const tsPath = paths.find((el)=>el.endsWith('.ts') && !el.includes('test')
-        );
-        if (!tsPath) {
-            return;
-        }
+        this.addHelper(normalizedName, importName, paths);
         const cName = normalizeToAngleBracketComponent(normalizedName);
-        this.imports.push(`import ${importName} from "${path.relative(projectRoot, tsPath)}";`);
         this.stack.push([
             cName,
             importName, 
-        ]);
-        this.stack.push([
-            normalizedName,
-            importName
         ]);
     }
     addHelper(normalizedName, importName, paths) {
@@ -139,7 +132,8 @@ class GlintInterfaceGenerator {
         if (!tsPath) {
             return;
         }
-        this.imports.push(`import ${importName} from "${path.relative(projectRoot, tsPath)}";`);
+        let importLocation = path.relative(projectRoot, tsPath).split(path.sep).join('/').replace('.d.ts', '').replace('.ts', '').replace('app/', appName + '/');
+        this.imports.push(`import ${importName} from "${importLocation}";`);
         this.stack.push([
             normalizedName,
             importName
