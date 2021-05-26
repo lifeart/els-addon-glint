@@ -21,30 +21,28 @@ import {
 import type { MessageConnection } from "vscode-jsonrpc/node";
 
 const projectRoot =
-"C:\\Users\\lifeart\\Documents\\repos\\dreamcatcher-web-app\\grdd";
-const addonLocation = "C:\\Users\\lifeart\\Documents\\repos\\els-addon-glint";
+  "/Users/aleksandr_kanunnikov/Documents/repos/smassetman_spa/smassetman";
+
+const appName = JSON.parse(fs.readFileSync(path.join(projectRoot, 'package.json'), 'utf8')).name;
 
 
-const appName = JSON.parse(fs.readFileSync(path.join(projectRoot,'package.json'), 'utf8')).name;
-
-
-if (!fs.existsSync("./registry.json")) {
-  const server = startServer();
-  const connection: MessageConnection = createConnection(server);
-  connection.listen();
-
-  initServer(connection, projectRoot).then(async () => {
-    await setConfig();
-    const p = await reloadProject();
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-    const result = await getProjectRegistry();
-    if (result !== null && !fs.existsSync("./registry.json")) {
-      fs.writeFileSync("./registry.json", JSON.stringify(result, null, 2));
-    }
-    // console.log(result);
-  });
-
-  function startServer() {
+class DataLoader {
+  server!: cp.ChildProcess;
+  connection!: MessageConnection;
+  root!: string;
+  constructor(root: string) {
+    this.root = root;
+    this.server = DataLoader.startServer()
+    this.connection = DataLoader.createConnection(this.server);
+    this.connection.listen();
+  }
+  static createConnection(serverProcess) {
+    return createMessageConnection(
+      new IPCMessageReader(serverProcess),
+      new IPCMessageWriter(serverProcess)
+    );
+  }
+  static startServer() {
     const serverPath = require.resolve(
       "@lifeart/ember-language-server/lib/start-server"
     );
@@ -53,86 +51,77 @@ if (!fs.existsSync("./registry.json")) {
       cwd: process.cwd(),
     });
   }
-
-  function createConnection(serverProcess) {
-    return createMessageConnection(
-      new IPCMessageReader(serverProcess),
-      new IPCMessageWriter(serverProcess)
-    );
+  destroy() {
+    this.connection.dispose();
+    this.server.disconnect();
   }
-
-  async function initServer(connection: MessageConnection, root) {
+  async initServer() {
     const params = {
-      rootUri: URI.file(root).toString(),
+      rootUri: URI.file(this.root).toString(),
       capabilities: {},
       initializationOptions: {
         isELSTesting: true,
       },
     };
 
-    return connection.sendRequest(InitializeRequest.type as any, params);
+    return this.connection.sendRequest(InitializeRequest.type as any, params);
   }
 
-  async function setConfig() {
-    return connection.sendRequest(
-      ExecuteCommandRequest.type as unknown as string,
-      {
-        command: "els.setConfig",
-        arguments: [
-          {
-            local: {
-              addons: [addonLocation],
-            },
-          },
-        ],
-      }
-    );
+
+  async loadRegistry() {
+    await this.initServer();
+    await this.reloadProject();
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+    const result: any = await this.getProjectRegistry();
+
+    return result.registry;
   }
 
-  async function getProjectRegistry() {
-    return connection.sendRequest(
+  async reloadProject() {
+    const params = {
+      command: "els.reloadProject",
+      arguments: [this.root],
+    };
+
+    return this.connection.sendRequest(ExecuteCommandRequest.type, params);
+  }
+
+  async getProjectRegistry() {
+    return this.connection.sendRequest(
       ExecuteCommandRequest.type as unknown as string,
       {
         command: "els.getProjectRegistry",
-        arguments: [projectRoot],
+        arguments: [this.root],
       }
     );
   }
-
-  async function reloadProject() {
-    const params = {
-      command: "els.reloadProject",
-      arguments: [projectRoot],
-    };
-
-    return connection.sendRequest(ExecuteCommandRequest.type, params);
-  }
 }
 
+
 function normalizeToAngleBracketComponent(name: string) {
-    const SIMPLE_DASHERIZE_REGEXP = /[a-z]|\/|-/g;
-    const ALPHA = /[A-Za-z0-9]/;
+  const SIMPLE_DASHERIZE_REGEXP = /[a-z]|\/|-/g;
+  const ALPHA = /[A-Za-z0-9]/;
 
-    if (name.includes(".")) {
-      return name;
-    }
-
-    return name.replace(SIMPLE_DASHERIZE_REGEXP, (char, index) => {
-      if (char === "/") {
-        return "::";
-      }
-
-      if (index === 0 || !ALPHA.test(name[index - 1])) {
-        return char.toUpperCase();
-      }
-
-      // Remove all occurrences of '-'s from the name that aren't starting with `-`
-      return char === "-" ? "" : char.toLowerCase();
-    });
+  if (name.includes(".")) {
+    return name;
   }
 
-function toClassName(name) {
-    return normalizeToAngleBracketComponent(name).split('::').join('');
+  return name.replace(SIMPLE_DASHERIZE_REGEXP, (char, index) => {
+    if (char === "/") {
+      return "::";
+    }
+
+    if (index === 0 || !ALPHA.test(name[index - 1])) {
+      return char.toUpperCase();
+    }
+
+    // Remove all occurrences of '-'s from the name that aren't starting with `-`
+    return char === "-" ? "" : char.toLowerCase();
+  });
+}
+
+function toClassName(name: string) {
+  return normalizeToAngleBracketComponent(name).split('::').join('');
 }
 
 class GlintInterfaceGenerator {
@@ -142,46 +131,51 @@ class GlintInterfaceGenerator {
   imports = [];
   addComponent(normalizedName: string, importName: string, paths: string[]) {
     if (!this.correctFile(paths)) {
-        return;
+      return;
     }
     this.addHelper(normalizedName, importName, paths);
     const cName = normalizeToAngleBracketComponent(normalizedName);
     this.stack.push([
-        cName,
+      cName,
       importName,
     ]);
   }
   correctFile(paths: string[]) {
-    return paths.find(el=> el.endsWith('.ts') && !el.includes('test'));
+    return paths.find(el => el.endsWith('.ts') && !el.includes('test'));
   }
   addHelper(normalizedName: string, importName: string, paths: string[]) {
     const tsPath = this.correctFile(paths);
     if (!tsPath) {
-        return;
+      return;
     }
     let importLocation = path.relative(projectRoot, tsPath).split(path.sep).join('/').replace('.d.ts', '').replace('.ts', '').replace('app/', appName + '/');
     this.imports.push(`import ${importName} from "${importLocation}";`)
     this.stack.push([normalizedName, importName]);
   }
-  
+
   toString() {
     return [...this.imports, , this.prefix, ...this.stack.map(([name, imp]) => {
-        return `  "${name}": typeof ${imp};`;
+      return `  "${name}": typeof ${imp};`;
     }), this.postfix].join('\n');
   }
 }
 
 
+const loader = new DataLoader(projectRoot);
 const generator = new GlintInterfaceGenerator();
-const data = JSON.parse(fs.readFileSync('./registry.json', 'utf8'));
 
-Object.keys(data.component).forEach((name) => {
+
+loader.loadRegistry().then((data) => {
+  Object.keys(data.component).forEach((name) => {
     generator.addComponent(name, toClassName(name), data.component[name]);
-});
+  });
 
-Object.keys(data.helper).forEach((name) => {
+  Object.keys(data.helper).forEach((name) => {
     generator.addHelper(name, toClassName(name), data.helper[name]);
-});
+  });
 
+  loader.destroy();
 
-console.log(generator.toString());
+  console.log(generator.toString());
+  process.exit(0);
+})

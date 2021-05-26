@@ -20,7 +20,7 @@
   "homepage": "https://github.com/lifeart/els-addon-glint#readme",
   "dependencies": {
     "@glint/core": "^0.4.1",
-    "@lifeart/ember-language-server": "^1.0.13",
+    "@lifeart/ember-language-server": "^1.19.0",
     "vscode-jsonrpc": "^6.0.0",
     "vscode-languageserver-protocol": "^3.16.0",
     "vscode-languageserver-textdocument": "^1.0.1",

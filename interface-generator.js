@@ -28,73 +28,63 @@ function _interopRequireWildcard(obj) {
         return newObj;
     }
 }
-const projectRoot = "C:\\Users\\lifeart\\Documents\\repos\\dreamcatcher-web-app\\grdd";
-const addonLocation = "C:\\Users\\lifeart\\Documents\\repos\\els-addon-glint";
+const projectRoot = "/Users/aleksandr_kanunnikov/Documents/repos/smassetman_spa/smassetman";
 const appName = JSON.parse(fs.readFileSync(path.join(projectRoot, 'package.json'), 'utf8')).name;
-if (!fs.existsSync("./registry.json")) {
-    const server = startServer();
-    const connection = createConnection(server);
-    connection.listen();
-    initServer(connection, projectRoot).then(async ()=>{
-        await setConfig();
-        const p = await reloadProject();
-        await new Promise((resolve)=>setTimeout(resolve, 2000)
-        );
-        const result = await getProjectRegistry();
-        if (result !== null && !fs.existsSync("./registry.json")) {
-            fs.writeFileSync("./registry.json", JSON.stringify(result, null, 2));
-        }
-    });
-    function startServer() {
+class DataLoader {
+    static createConnection(serverProcess) {
+        return _node.createMessageConnection(new _node.IPCMessageReader(serverProcess), new _node.IPCMessageWriter(serverProcess));
+    }
+    static startServer() {
         const serverPath = require.resolve("@lifeart/ember-language-server/lib/start-server");
         return cp.fork(serverPath, [], {
             cwd: process.cwd()
         });
     }
-    function createConnection(serverProcess) {
-        return _node.createMessageConnection(new _node.IPCMessageReader(serverProcess), new _node.IPCMessageWriter(serverProcess));
+    destroy() {
+        this.connection.dispose();
+        this.server.disconnect();
     }
-    async function initServer(connection1, root) {
+    async initServer() {
         const params = {
-            rootUri: _vscodeUri.URI.file(root).toString(),
+            rootUri: _vscodeUri.URI.file(this.root).toString(),
             capabilities: {
             },
             initializationOptions: {
                 isELSTesting: true
             }
         };
-        return connection1.sendRequest(_node1.InitializeRequest.type, params);
+        return this.connection.sendRequest(_node1.InitializeRequest.type, params);
     }
-    async function setConfig() {
-        return connection.sendRequest(_node1.ExecuteCommandRequest.type, {
-            command: "els.setConfig",
-            arguments: [
-                {
-                    local: {
-                        addons: [
-                            addonLocation
-                        ]
-                    }
-                }, 
-            ]
-        });
+    async loadRegistry() {
+        await this.initServer();
+        await this.reloadProject();
+        await new Promise((resolve)=>setTimeout(resolve, 2000)
+        );
+        const result = await this.getProjectRegistry();
+        return result.registry;
     }
-    async function getProjectRegistry() {
-        return connection.sendRequest(_node1.ExecuteCommandRequest.type, {
-            command: "els.getProjectRegistry",
-            arguments: [
-                projectRoot
-            ]
-        });
-    }
-    async function reloadProject() {
+    async reloadProject() {
         const params = {
             command: "els.reloadProject",
             arguments: [
-                projectRoot
+                this.root
             ]
         };
-        return connection.sendRequest(_node1.ExecuteCommandRequest.type, params);
+        return this.connection.sendRequest(_node1.ExecuteCommandRequest.type, params);
+    }
+    async getProjectRegistry() {
+        return this.connection.sendRequest(_node1.ExecuteCommandRequest.type, {
+            command: "els.getProjectRegistry",
+            arguments: [
+                this.root
+            ]
+        });
+    }
+    constructor(root){
+        this.root = root;
+        this.server = DataLoader.startServer();
+        this.connection = DataLoader.createConnection(this.server);
+        this.connection.listen();
     }
 }
 function normalizeToAngleBracketComponent(name) {
@@ -163,13 +153,17 @@ class GlintInterfaceGenerator {
         this.imports = [];
     }
 }
+const loader = new DataLoader(projectRoot);
 const generator = new GlintInterfaceGenerator();
-const data = JSON.parse(fs.readFileSync('./registry.json', 'utf8'));
-Object.keys(data.component).forEach((name)=>{
-    generator.addComponent(name, toClassName(name), data.component[name]);
+loader.loadRegistry().then((data)=>{
+    Object.keys(data.component).forEach((name)=>{
+        generator.addComponent(name, toClassName(name), data.component[name]);
+    });
+    Object.keys(data.helper).forEach((name)=>{
+        generator.addHelper(name, toClassName(name), data.helper[name]);
+    });
+    loader.destroy();
+    console.log(generator.toString());
+    process.exit(0);
 });
-Object.keys(data.helper).forEach((name)=>{
-    generator.addHelper(name, toClassName(name), data.helper[name]);
-});
-console.log(generator.toString());
 
