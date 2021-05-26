@@ -29,7 +29,20 @@ function _interopRequireWildcard(obj) {
     }
 }
 const projectRoot = "/Users/aleksandr_kanunnikov/Documents/repos/smassetman_spa/smassetman";
-const appName = JSON.parse(fs.readFileSync(path.join(projectRoot, 'package.json'), 'utf8')).name;
+function getProjectName(rawFsPath) {
+    const fsPath = rawFsPath.split('/').join(path.sep);
+    if (fs.existsSync(path.join(fsPath, 'package.json'))) {
+        return JSON.parse(fs.readFileSync(path.join(projectRoot, 'package.json'), 'utf8')).name;
+    } else {
+        let parts = fsPath.split(path.sep);
+        parts.pop();
+        if (!parts.length) {
+            return 'unknown';
+        }
+        return getProjectName(parts.join(path.sep));
+    }
+}
+const appName = getProjectName(projectRoot);
 class DataLoader {
     static createConnection(serverProcess) {
         return _node.createMessageConnection(new _node.IPCMessageReader(serverProcess), new _node.IPCMessageWriter(serverProcess));
@@ -58,7 +71,7 @@ class DataLoader {
     async loadRegistry() {
         await this.initServer();
         await this.reloadProject();
-        await new Promise((resolve)=>setTimeout(resolve, 2000)
+        await new Promise((resolve)=>setTimeout(resolve, 10000)
         );
         const result = await this.getProjectRegistry();
         return result.registry;
@@ -105,7 +118,7 @@ function normalizeToAngleBracketComponent(name) {
     });
 }
 function toClassName(name) {
-    return normalizeToAngleBracketComponent(name).split('::').join('');
+    return normalizeToAngleBracketComponent(name).split('::').join('').split('-').join('');
 }
 class GlintInterfaceGenerator {
     addComponent(normalizedName, importName, paths) {
@@ -120,15 +133,29 @@ class GlintInterfaceGenerator {
         ]);
     }
     correctFile(paths) {
-        return paths.find((el)=>el.endsWith('.ts') && !el.includes('test')
+        let ts = paths.find((el)=>el.endsWith('.ts') && !el.includes('test')
         );
+        if (ts) {
+            return ts;
+        }
+        let js = paths.find((el)=>el.endsWith('.js') && !el.includes('test')
+        );
+        return js;
     }
     addHelper(normalizedName, importName, paths) {
         const tsPath = this.correctFile(paths);
         if (!tsPath) {
             return;
         }
-        let importLocation = path.relative(projectRoot, tsPath).split(path.sep).join('/').replace('.d.ts', '').replace('.ts', '').replace('app/', appName + '/');
+        let importLocation = tsPath.replace(projectRoot, '').split(path.sep).join('/').replace('.d.ts', '').replace('.ts', '').replace('.js', '');
+        if (importLocation.startsWith('/')) {
+            importLocation = importLocation.replace('/', '');
+        }
+        if (importLocation.includes('node_modules')) {
+            importLocation = importLocation.split('node_modules/').pop().replace('/app/', '');
+        } else {
+            importLocation = importLocation.replace('app/', appName + '/');
+        }
         this.imports.push(`import ${importName} from "${importLocation}";`);
         this.stack.push([
             normalizedName,
@@ -156,6 +183,7 @@ class GlintInterfaceGenerator {
 const loader = new DataLoader(projectRoot);
 const generator = new GlintInterfaceGenerator();
 loader.loadRegistry().then((data)=>{
+    fs.writeFileSync('registry.json', JSON.stringify(data, null, 2), 'utf8');
     Object.keys(data.component).forEach((name)=>{
         generator.addComponent(name, toClassName(name), data.component[name]);
     });
