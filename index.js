@@ -41,15 +41,11 @@ function buildHelpers({ languageServer , documents , connection  }) {
 module.exports = (function() {
     class ElsAddonQunitTestRunner {
         onInit(server, project) {
-            project.executors["els.getProjectRegistry"] = async (server, __, [cmd])=>{
-                return server.getRegistry(project.root);
-            };
             this.server = server;
             this.project = project;
             let destroy = this.bindLanguageServer();
             return ()=>{
                 destroy();
-                project.executors["els.getProjectRegistry"] = undefined;
             };
         }
         bindLanguageServer() {
