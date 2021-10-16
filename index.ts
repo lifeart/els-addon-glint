@@ -1,4 +1,4 @@
-import {
+import type {
   Project,
   Server,
   AddonAPI,
@@ -7,8 +7,8 @@ import {
   ReferenceFunctionParams,
 } from "@lifeart/ember-language-server";
 import { loadTypeScript } from "@glint/core/lib/common/load-typescript";
-import { Connection, TextDocuments } from "vscode-languageserver";
-import { TextDocument } from "vscode-languageserver-textdocument";
+import type { Connection, TextDocuments } from "vscode-languageserver";
+import type { TextDocument } from "vscode-languageserver-textdocument";
 import { findConfig } from "@glint/config";
 import {
   parseConfigFile,
@@ -85,7 +85,7 @@ module.exports = class ElsAddonQunitTestRunner implements AddonAPI {
     );
     const { fileNames, options } = parseConfigFile(ts, tsconfigPath);
 
-    const tsFileNames = fileNames.filter((fileName) => /\.ts$/.test(fileName));
+    const tsFileNames = fileNames.filter((fileName: string) => /\.ts$/.test(fileName));
     const baseProjectRoots = new Set(tsFileNames);
     const getRootFileNames = (): Array<string> => {
       return tsFileNames.concat(
