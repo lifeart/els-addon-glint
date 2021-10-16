@@ -47,7 +47,26 @@ function buildHelpers({
     scheduleDiagnostics: debounce(250, () => {
       for (let { uri } of documents.all()) {
         const diagnostics = languageServer.getDiagnostics(uri);
-        connection.sendDiagnostics({ uri, diagnostics });
+        const filteredDiagnostics = diagnostics.filter(({message}) => {
+          // https://github.com/typed-ember/glint/issues/222
+          if (message.includes('is declared but its value is never read')) {
+            return false;
+          }
+          if (message.includes("Type 'GlimmerComponent") && message.includes("is not assignable to type 'TemplateComponent")) {
+            return false;
+          }
+          if (message.includes("Type 'TemplateComponent") && message.includes("is not assignable to type 'GlimmerComponent")) {
+            return false;
+          }
+          if (message.includes('No overload matches this call.')) {
+            return false;
+          }
+
+          return true;
+        })
+        if (filteredDiagnostics.length) {
+          connection.sendDiagnostics({ uri, diagnostics: filteredDiagnostics });
+        }
       }
     }),
 
@@ -170,7 +189,7 @@ module.exports = class ElsAddonQunitTestRunner implements AddonAPI {
       params.textDocument.uri,
       params.position
     );
-    return [...results, ...params.results];
+    return [...(results || []), ...params.results];
   }
   async onDefinition(_: string, params: DefinitionFunctionParams) {
     const results = await this.languageServer.getDefinition(
