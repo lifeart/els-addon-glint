@@ -21,7 +21,12 @@ function buildHelpers({ languageServer , documents , connection  }) {
     return {
         scheduleDiagnostics: debounce(250, ()=>{
             for (let { uri  } of documents.all()){
-                const diagnostics = languageServer.getDiagnostics(uri);
+                let diagnostics = [];
+                try {
+                    diagnostics = languageServer.getDiagnostics(uri);
+                } catch (e) {
+                // EOL
+                }
                 const filteredDiagnostics = diagnostics.filter(({ message  })=>{
                     // https://github.com/typed-ember/glint/issues/222
                     if (message.includes('is declared but its value is never read')) {
@@ -128,7 +133,13 @@ module.exports = class ElsAddonQunitTestRunner {
     }
     async onHover(_, params) {
         const { textDocument , position  } = params;
-        return this.languageServer.getHover(textDocument.uri, position);
+        const hover = this.languageServer.getHover(textDocument.uri, position);
+        if (hover) {
+            return [
+                hover
+            ];
+        }
+        return params.results;
     }
     async onComplete(_, params) {
         const results = await this.languageServer.getCompletions(params.textDocument.uri, params.position);
