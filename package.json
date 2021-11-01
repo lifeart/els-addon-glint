@@ -1,7 +1,7 @@
 {
   "name": "els-addon-glint",
   "version": "0.6.4",
-  "description": "",
+  "description": "Glint integration for Unstable Ember Language Server",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
