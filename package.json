@@ -1,6 +1,6 @@
 {
   "name": "els-addon-glint",
-  "version": "0.6.2",
+  "version": "0.6.3",
   "description": "",
   "main": "index.js",
   "scripts": {
@@ -27,11 +27,12 @@
     "capabilities": {
       "completionProvider": true,
       "definitionProvider": true,
-      "referencesProvider": true
+      "referencesProvider": true,
+      "hoverProvider": true
     }
   },
   "devDependencies": {
-    "@lifeart/ember-language-server": "^2.2.2",
+    "@lifeart/ember-language-server": "^2.4.0",
     "vscode-languageserver-textdocument": "^1.0.2",
     "@swc/cli": "^0.1.51",
     "@swc/core": "^1.2.98",

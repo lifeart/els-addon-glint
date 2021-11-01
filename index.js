@@ -114,10 +114,6 @@ module.exports = class ElsAddonQunitTestRunner {
             return (ref = captureErrors(()=>languageServer.getCompletionDetails(item)
             )) !== null && ref !== void 0 ? ref : item;
         });
-        connection.onHover(({ textDocument , position  })=>{
-            return captureErrors(()=>languageServer.getHover(textDocument.uri, position)
-            );
-        });
         connection.onWorkspaceSymbol(({ query  })=>{
             return captureErrors(()=>languageServer.findSymbols(query)
             );
@@ -129,6 +125,10 @@ module.exports = class ElsAddonQunitTestRunner {
         return ()=>{
             languageServer.dispose();
         };
+    }
+    async onHover(_, params) {
+        const { textDocument , position  } = params;
+        return this.languageServer.getHover(textDocument.uri, position);
     }
     async onComplete(_, params) {
         const results = await this.languageServer.getCompletions(params.textDocument.uri, params.position);

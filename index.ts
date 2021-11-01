@@ -5,6 +5,7 @@ import type {
   CompletionFunctionParams,
   DefinitionFunctionParams,
   ReferenceFunctionParams,
+  HoverFunctionParams,
 } from "@lifeart/ember-language-server";
 import { loadTypeScript } from "@glint/core/lib/common/load-typescript";
 import type { Connection, TextDocuments } from "vscode-languageserver";
@@ -165,12 +166,6 @@ module.exports = class ElsAddonQunitTestRunner implements AddonAPI {
       );
     });
 
-    connection.onHover(({ textDocument, position }) => {
-      return captureErrors(() =>
-        languageServer.getHover(textDocument.uri, position)
-      );
-    });
-
     connection.onWorkspaceSymbol(({ query }) => {
       return captureErrors(() => languageServer.findSymbols(query));
     });
@@ -183,6 +178,10 @@ module.exports = class ElsAddonQunitTestRunner implements AddonAPI {
     return () => {
       languageServer.dispose();
     };
+  }
+  async onHover(_: string, params: HoverFunctionParams) {
+    const { textDocument, position } = params;
+    return this.languageServer.getHover(textDocument.uri, position);
   }
   async onComplete(_: string, params: CompletionFunctionParams) {
     const results = await this.languageServer.getCompletions(
