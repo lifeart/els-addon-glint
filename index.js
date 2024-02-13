@@ -61,7 +61,7 @@ function buildHelpers({ languageServer , documents , connection  }) {
         }
     };
 }
-module.exports = class ElsAddonQunitTestRunner {
+module.exports = class ElsAddonGlint {
     onInit(server, project) {
         this.server = server;
         this.project = project;

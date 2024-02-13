@@ -85,7 +85,7 @@ function buildHelpers({
     },
   };
 }
-module.exports = class ElsAddonQunitTestRunner implements AddonAPI {
+module.exports = class ElsAddonGlint implements AddonAPI {
   server!: Server;
   project!: Project;
   languageServer!: GlintLanguageServer;
